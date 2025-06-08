@@ -1,0 +1,1354 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Admin Dashboard - Postal Code Detector{% endblock %}
+
+{% block page_title %}Admin Dashboard{% endblock %}
+
+{% block custom_css %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+.stats-box {
+    background-color: white;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    margin-bottom: 15px;
+    padding: 20px;
+}
+
+.stats-box:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.stats-icon {
+    margin-bottom: 10px;
+    font-size: 2rem;
+    color: var(--primary-color);
+}
+
+.stats-title {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+}
+
+.stats-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--dark-color);
+}
+
+.user-table th {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.role-badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+    border-radius: 0.25rem;
+}
+
+.role-admin {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.role-user {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.settings-form .form-label {
+    font-weight: 500;
+}
+
+.reset-confirm-modal .modal-header {
+    border-bottom-color: #f8d7da;
+}
+
+.reset-confirm-modal .modal-footer {
+    border-top-color: #f8d7da;
+}
+
+/* Chart container styles */
+.chart-container {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.chart-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.chart-title i {
+    margin-right: 8px;
+}
+
+/* Location info styles */
+.location-container {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: rgba(0, 150, 136, 0.1);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.location-container.hidden {
+    display: none;
+}
+
+.location-box {
+    margin-bottom: 10px;
+}
+
+.location-box .label {
+    color: #aaa;
+    font-size: 14px;
+}
+
+.location-box .value {
+    font-size: 16px;
+    font-weight: 500;
+    display: block;
+    margin-top: 5px;
+}
+
+.location-box .value.region {
+    color: #00BFA5;
+    font-size: 18px;
+}
+
+.location-box .value.detail {
+    color: #e0e0e0;
+}
+
+@keyframes scanning-indicator {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.highlight {
+    color: #3f51b5;
+    transform: scale(1.05);
+    text-shadow: 0 0 15px rgba(63, 81, 181, 0.5);
+    transition: all 0.3s ease;
+}
+.live-update {
+    animation: fadeInUp 0.5s ease-out;
+}
+.history-table-row {
+    transition: all 0.3s ease;
+}
+.history-table-row:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+    transform: translateX(5px);
+}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-box text-center">
+            <div class="stats-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stats-title">Uptime</div>
+            <div class="stats-value" id="uptime-value">--:--:--</div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-box text-center">
+            <div class="stats-icon">
+                <i class="fas fa-eye"></i>
+            </div>
+            <div class="stats-title">Total Detections</div>
+            <div class="stats-value" id="total-detections">0</div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-box text-center">
+            <div class="stats-icon">
+                <i class="fas fa-tags"></i>
+            </div>
+            <div class="stats-title">Unique Codes</div>
+            <div class="stats-value" id="unique-codes">0</div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-box text-center">
+            <div class="stats-icon">
+                <i class="fas fa-hourglass-half"></i>
+            </div>
+            <div class="stats-title">Scan Interval</div>
+            <div class="stats-value" id="scan-interval">0.5s</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5><i class="fas fa-video"></i> Live Camera Feed</h5>
+            </div>
+            <div class="p-0">
+                <img src="{{ url_for('video_feed') }}" class="img-fluid w-100" alt="Live Video Stream">
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5><i class="fas fa-history"></i> Live Detection History</h5>
+            </div>
+            <div class="p-3">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Postal Code</th>
+                                <th>Status</th>
+                                <th>Region</th>
+                                <th>Location</th>
+                                <th>Detected At</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <tr>
+                                <td colspan="5" class="text-center">No detection history</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5><i class="fas fa-search"></i> Detection Results</h5>
+            </div>
+            <div class="p-3">
+                <div class="d-flex align-items-center mb-3 p-3 bg-light rounded">
+                    <span>Status: </span>
+                    <span class="status-indicator ms-2" id="status-indicator" style="width: 15px; height: 15px; border-radius: 50%; display: inline-block;"></span>
+                    <span id="status-text" class="ms-2">Waiting for detection...</span>
+                    <span class="ms-2" id="scanning-indicator" style="width: 18px; height: 18px; position: relative;"></span>
+                </div>
+                
+                <div class="bg-light rounded p-4 text-center mb-3">
+                    <div class="small text-muted mb-1">Current Postal Code</div>
+                    <div id="postal-code" style="font-size: 2.5rem; font-weight: 700; letter-spacing: 2px;">----</div>
+                    <div id="detection-time" class="small text-muted">Never detected</div>
+                </div>
+                
+                <div id="location-container" class="location-container hidden">
+                    <div class="location-box">
+                        <span class="label">Region:</span>
+                        <span id="location-region" class="value region"></span>
+                    </div>
+                    <div class="location-box">
+                        <span class="label">Location:</span>
+                        <span id="location-detail" class="value detail"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-cog"></i> System Actions</h5>
+            </div>
+            <div class="p-3">
+                <button id="reset-btn" class="btn btn-danger w-100 mb-3">
+                    <i class="fas fa-sync-alt me-2"></i> Reset Detection History
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4" id="users">
+    <div class="col-lg-12">
+        <div class="dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-users"></i> User Management</h5>
+                <div>
+                    <a href="{{ url_for('admin_users_list') }}" class="btn btn-sm btn-primary me-2">
+                        <i class="fas fa-list me-1"></i> Liste des utilisateurs
+                    </a>
+                    <button class="btn btn-sm btn-outline-primary me-2" id="pendingUsersBtn">
+                        <i class="fas fa-user-clock me-1"></i> Pending Users <span id="pending-badge" class="badge bg-danger ms-1">0</span>
+                    </button>
+                    <button class="btn btn-sm btn-light" id="addUserBtn">
+                        <i class="fas fa-plus me-1"></i> Add User
+                    </button>
+                </div>
+            </div>
+            <div class="p-3">
+                <div id="pending-users-section" class="mb-4" style="display: none;">
+                    <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-user-clock me-2"></i> Pending Approval</h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Full Name</th>
+                                    <th>Email</th>
+                                    <th>Department</th>
+                                    <th>Registered</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pending-users-table-body">
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading pending users...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-user-check me-2"></i> Active Users</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover user-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Full Name</th>
+                                <th>Email</th>
+                                <th>Department</th>
+                                <th>Role</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <tr>
+                                <td colspan="7" class="text-center">Loading users...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4" id="settings">
+    <div class="col-lg-12">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5><i class="fas fa-sliders-h"></i> System Settings</h5>
+            </div>
+            <div class="p-3">
+                <form id="settings-form" class="settings-form">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="scan-interval-input" class="form-label">Scan Interval (seconds)</label>
+                            <input type="number" class="form-control" id="scan-interval-input" min="0.1" step="0.1" value="0.5">
+                            <div class="form-text">Time between OCR scans (lower values increase CPU usage)</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="min-confidence-input" class="form-label">Minimum Confidence (%)</label>
+                            <input type="number" class="form-control" id="min-confidence-input" min="0" max="100" value="65">
+                            <div class="form-text">Minimum confidence threshold for OCR results</div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i> Save Settings
+                        </button>
+                        
+                        <!-- System Reset Section -->
+                        <div class="border-start ps-4">
+                            <h6 class="text-danger mb-2">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Zone de Danger
+                            </h6>
+                            <a href="{{ url_for('admin_system_reset') }}" class="btn btn-danger btn-sm">
+                                <i class="fas fa-trash-alt me-2"></i>Réinitialiser le Système
+                            </a>
+                            <div class="form-text text-danger">
+                                Supprime toutes les données du système (irréversible)
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4" id="tunisia-stats">
+    <div class="col-lg-12">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5><i class="fas fa-map-marked-alt"></i> Tunisia Postal Code Statistics</h5>
+            </div>
+            <div class="p-3">
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="stats-box mb-4">
+                            <h6 class="border-bottom pb-2 mb-3">Most Detected Regions</h6>
+                            <div id="region-stats" class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Region</th>
+                                            <th>Detections</th>
+                                            <th>Percentage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="region-stats-body">
+                                        <tr>
+                                            <td colspan="3" class="text-center">No data available</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="stats-box">
+                            <h6 class="border-bottom pb-2 mb-3">Regional Coverage</h6>
+                            <div class="progress-group mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Detected Regions</span>
+                                    <span id="detected-regions-count">0/24</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div id="region-coverage-progress" class="progress-bar bg-primary" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div id="coverage-details" class="small text-muted mt-2">
+                                No regions detected yet.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-7">
+                        <div class="stats-box h-100">
+                            <h6 class="border-bottom pb-2 mb-3">Tunisia Regional Map</h6>
+                            <div class="tunisia-map-wrapper text-center">
+                                <div id="tunisia-map" class="position-relative" style="height: 450px; background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Tunisia_Regions_map.svg/800px-Tunisia_Regions_map.svg.png'); background-size: contain; background-position: center; background-repeat: no-repeat;">
+                                    <!-- Map markers will be added here dynamically -->
+                                    <div class="map-overlay position-absolute" style="top: 0; left: 0; right: 0; bottom: 0; pointer-events: none;">
+                                        <div class="d-flex justify-content-end p-2">
+                                            <div class="map-legend bg-white p-2 rounded shadow-sm" style="pointer-events: auto; opacity: 0.9;">
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <div style="width: 15px; height: 15px; background-color: #cfe2ff; border-radius: 50%; margin-right: 5px;"></div>
+                                                    <small>Low</small>
+                                                </div>
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <div style="width: 15px; height: 15px; background-color: #3f51b5; border-radius: 50%; margin-right: 5px;"></div>
+                                                    <small>Medium</small>
+                                                </div>
+                                                <div class="d-flex align-items-center">
+                                                    <div style="width: 15px; height: 15px; background-color: #303f9f; border-radius: 50%; margin-right: 5px;"></div>
+                                                    <small>High</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="map-note mt-2 text-muted small">
+                                    <i class="fas fa-info-circle me-1"></i> Map shows detection frequency by region
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUserModalLabel">Add New User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-user-form">
+                    <div class="mb-3">
+                        <label for="new-username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="new-username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="new-password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-role" class="form-label">Role</label>
+                        <select class="form-select" id="new-role" required>
+                            <option value="user">Standard User</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveUserBtn">Save User</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Confirmation Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Delete User</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete user <strong id="delete-username">username</strong>?</p>
+                <p class="mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete User</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Confirmation Modal -->
+<div class="modal fade reset-confirm-modal" id="resetConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Reset System</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to reset all detection history and statistics?</p>
+                <p class="mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmResetBtn">Reset System</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_scripts %}
+// Status indicator styles
+const statusDetected = 'background-color: #4caf50; box-shadow: 0 0 0 rgba(76, 175, 80, 0.4); animation: pulse-green 2s infinite;';
+const statusNotDetected = 'background-color: #f44336;';
+
+// Animation for scanning indicator
+document.getElementById('scanning-indicator').innerHTML = '<div style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid #3f51b5; border-color: #3f51b5 transparent #3f51b5 transparent; animation: scanning-indicator 1.2s linear infinite;"></div>';
+document.head.insertAdjacentHTML('beforeend', `
+    <style>
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+        @keyframes scanning-indicator {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .highlight {
+            color: #3f51b5;
+            transform: scale(1.05);
+            text-shadow: 0 0 15px rgba(63, 81, 181, 0.5);
+            transition: all 0.3s ease;
+        }
+        .live-update {
+            animation: fadeInUp 0.5s ease-out;
+        }
+        .history-table-row {
+            transition: all 0.3s ease;
+        }
+        .history-table-row:hover {
+            background-color: rgba(0, 123, 255, 0.05);
+            transform: translateX(5px);
+        }
+    </style>
+`);
+
+// Initialize Bootstrap modals
+const addUserModal = new bootstrap.Modal(document.getElementById('addUserModal'));
+const deleteUserModal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+const resetConfirmModal = new bootstrap.Modal(document.getElementById('resetConfirmModal'));
+
+// Function to update postal code information
+function updatePostalCode() {
+    fetch('/get_postal_code')
+        .then(response => response.json())
+        .then(data => {
+            const postalCodeElement = document.getElementById('postal-code');
+            const statusIndicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+            const detectionTime = document.getElementById('detection-time');
+            const locationContainer = document.getElementById('location-container');
+            const locationRegion = document.getElementById('location-region');
+            const locationDetail = document.getElementById('location-detail');
+
+            if (data.status === 'detected') {
+                postalCodeElement.textContent = data.postal_code;
+                statusIndicator.className = 'status-indicator detected';
+                statusText.textContent = 'Detected';
+                
+                const date = new Date(data.timestamp);
+                detectionTime.textContent = `Detected at: ${date.toLocaleTimeString()}`;
+                
+                // Display location information if available
+                if (data.location_info) {
+                    locationContainer.classList.remove('hidden');
+                    locationRegion.textContent = data.location_info.region;
+                    locationDetail.textContent = data.location_info.location;
+                } else {
+                    locationContainer.classList.add('hidden');
+                }
+            } else {
+                postalCodeElement.textContent = "----";
+                statusIndicator.className = 'status-indicator not-detected';
+                statusText.textContent = 'Not Detected';
+                detectionTime.textContent = "Never detected";
+                locationContainer.classList.add('hidden');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching postal code:', error);
+        });
+}
+
+// Function to update history table
+function updateHistory() {
+    fetch('/get_history')
+        .then(response => response.json())
+        .then(data => {
+            const historyTableBody = document.getElementById('history-table-body');
+            
+            if (data.history && data.history.length > 0) {
+                // Clear the table
+                historyTableBody.innerHTML = '';
+                
+                // Add each history item
+                data.history.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.className = 'history-table-row';
+                    
+                    // Add fade-in animation for new items
+                    if (index < 3) {
+                        row.classList.add('live-update');
+                    }
+                    
+                    const codeCell = document.createElement('td');
+                    codeCell.textContent = item.postal_code;
+                    codeCell.style.fontWeight = 'bold';
+                    codeCell.style.fontSize = '1.1rem';
+                    if (item.is_valid) {
+                        codeCell.style.color = '#28a745';
+                    } else {
+                        codeCell.style.color = '#dc3545';
+                    }
+                    
+                    const statusCell = document.createElement('td');
+                    const statusBadge = document.createElement('span');
+                    statusBadge.className = item.is_valid ? 'badge bg-success' : 'badge bg-danger';
+                    statusBadge.textContent = item.is_valid ? 'VALID' : 'INVALID';
+                    statusBadge.style.fontSize = '0.8rem';
+                    statusCell.appendChild(statusBadge);
+                    
+                    const regionCell = document.createElement('td');
+                    if (item.is_valid && item.region && item.region !== 'Unknown') {
+                        regionCell.textContent = item.region;
+                        regionCell.style.color = '#28a745';
+                        regionCell.style.fontWeight = '500';
+                    } else {
+                        regionCell.textContent = item.region || 'Unknown';
+                        regionCell.style.color = '#6c757d';
+                        regionCell.style.fontStyle = 'italic';
+                    }
+                    
+                    const locationCell = document.createElement('td');
+                    if (item.is_valid && item.location && item.location !== 'Unknown') {
+                        locationCell.textContent = item.location;
+                        locationCell.style.color = '#495057';
+                    } else {
+                        locationCell.textContent = item.location || 'Not in Tunisia DB';
+                        locationCell.style.color = '#6c757d';
+                        locationCell.style.fontStyle = 'italic';
+                        locationCell.style.fontSize = '0.9rem';
+                    }
+                    
+                    const timeCell = document.createElement('td');
+                    const timeDate = new Date(item.timestamp);
+                    timeCell.textContent = timeDate.toLocaleTimeString();
+                    timeCell.style.color = '#6c757d';
+                    timeCell.style.fontSize = '0.9rem';
+                    timeCell.title = timeDate.toLocaleDateString(); // Show full date on hover
+                    
+                    row.appendChild(codeCell);
+                    row.appendChild(statusCell);
+                    row.appendChild(regionCell);
+                    row.appendChild(locationCell);
+                    row.appendChild(timeCell);
+                    historyTableBody.appendChild(row);
+                });
+            } else {
+                historyTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No detection history</td></tr>';
+            }
+        })
+        .catch(error => console.error('Error fetching history data:', error));
+}
+
+// Function to update system stats
+function updateStats() {
+    fetch('/get_stats')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('uptime-value').textContent = data.uptime;
+            document.getElementById('total-detections').textContent = data.total_detections;
+            document.getElementById('unique-codes').textContent = data.unique_codes;
+            document.getElementById('scan-interval').textContent = data.scan_interval + 's';
+            
+            // Update settings form values
+            document.getElementById('scan-interval-input').value = data.scan_interval;
+            document.getElementById('min-confidence-input').value = data.min_confidence;
+        })
+        .catch(error => console.error('Error fetching stats data:', error));
+}
+
+// Function to update regional statistics and map
+function updateRegionalStats() {
+    fetch('/get_regional_stats')
+        .then(response => response.json())
+        .then(data => {
+            const regionStatsBody = document.getElementById('region-stats-body');
+            const detectedRegionsCount = document.getElementById('detected-regions-count');
+            const regionCoverageProgress = document.getElementById('region-coverage-progress');
+            const coverageDetails = document.getElementById('coverage-details');
+            const tunisiaMap = document.getElementById('tunisia-map');
+            
+            // Update region stats table
+            if (data.regions && data.regions.length > 0) {
+                // Clear the table
+                regionStatsBody.innerHTML = '';
+                
+                // Add each region
+                data.regions.forEach(region => {
+                    const row = document.createElement('tr');
+                    
+                    const nameCell = document.createElement('td');
+                    nameCell.textContent = region.name;
+                    
+                    const detectionsCell = document.createElement('td');
+                    detectionsCell.textContent = region.detections;
+                    
+                    const percentageCell = document.createElement('td');
+                    percentageCell.textContent = region.percentage + '%';
+                    
+                    row.appendChild(nameCell);
+                    row.appendChild(detectionsCell);
+                    row.appendChild(percentageCell);
+                    regionStatsBody.appendChild(row);
+                });
+                
+                // Add demo data indicator if using fake statistics
+                if (data.is_demo_data) {
+                    const demoNote = document.createElement('div');
+                    demoNote.className = 'alert alert-info mt-3 mb-0 py-2';
+                    demoNote.innerHTML = '<small><i class="fas fa-info-circle me-1"></i> Showing demo data. Real statistics will appear as postal codes are detected.</small>';
+                    document.getElementById('region-stats').appendChild(demoNote);
+                }
+                
+                // Update coverage information
+                const totalRegions = 24; // Tunisia has 24 administrative regions
+                const detectedRegions = data.detected_regions_count;
+                const coveragePercentage = Math.round((detectedRegions / totalRegions) * 100);
+                
+                detectedRegionsCount.textContent = `${detectedRegions}/${totalRegions}`;
+                regionCoverageProgress.style.width = `${coveragePercentage}%`;
+                
+                if (detectedRegions > 0) {
+                    coverageDetails.textContent = `${detectedRegions} regions detected (${coveragePercentage}% coverage)`;
+                    
+                    // Update map with markers for each region
+                    tunisiaMap.querySelectorAll('.region-marker').forEach(marker => marker.remove());
+                    
+                    // This is a simplified approach. In a real implementation, you would have
+                    // actual coordinates for each region on the map image
+                    data.regions.slice(0, 5).forEach((region, index) => {
+                        const intensity = region.percentage > 30 ? 'high' : (region.percentage > 10 ? 'medium' : 'low');
+                        const color = intensity === 'high' ? '#303f9f' : (intensity === 'medium' ? '#3f51b5' : '#cfe2ff');
+                        
+                        // Create faux coordinates (this is simplified; real implementation would use actual map coordinates)
+                        const x = 100 + (index * 100);
+                        const y = 150 + (index * 50);
+                        
+                        const marker = document.createElement('div');
+                        marker.className = 'region-marker position-absolute';
+                        marker.style.cssText = `
+                            left: ${x}px;
+                            top: ${y}px;
+                            width: 25px;
+                            height: 25px;
+                            background-color: ${color};
+                            border-radius: 50%;
+                            border: 2px solid white;
+                            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            color: white;
+                            font-weight: bold;
+                            font-size: 12px;
+                            z-index: 10;
+                        `;
+                        marker.textContent = region.detections;
+                        marker.title = `${region.name}: ${region.detections} detections`;
+                        
+                        tunisiaMap.appendChild(marker);
+                    });
+                    
+                    // Add demo data indicator on the map if using fake statistics
+                    if (data.is_demo_data) {
+                        const mapDemoIndicator = document.createElement('div');
+                        mapDemoIndicator.className = 'position-absolute bottom-0 end-0 m-2 badge bg-info';
+                        mapDemoIndicator.innerHTML = 'Demo Data';
+                        mapDemoIndicator.style.opacity = '0.8';
+                        tunisiaMap.appendChild(mapDemoIndicator);
+                    }
+                } else {
+                    coverageDetails.textContent = 'No regions detected yet.';
+                }
+            } else {
+                regionStatsBody.innerHTML = '<tr><td colspan="3" class="text-center">No data available</td></tr>';
+                coverageDetails.textContent = 'No regions detected yet.';
+            }
+        })
+        .catch(error => console.error('Error fetching regional stats:', error));
+}
+
+// Function to load users
+function loadUsers() {
+    fetch('/manage_users')
+        .then(response => response.json())
+        .then(data => {
+            const usersTableBody = document.getElementById('users-table-body');
+            const pendingUsersTableBody = document.getElementById('pending-users-table-body');
+            
+            if (data.users && data.users.length > 0) {
+                // Clear the tables
+                usersTableBody.innerHTML = '';
+                pendingUsersTableBody.innerHTML = '';
+                
+                // Count pending users
+                let pendingCount = 0;
+                
+                // Add each user to appropriate table
+                data.users.forEach(user => {
+                    // Skip if not approved (will be added to pending table)
+                    if (!user.is_approved && user.role !== 'admin') {
+                        pendingCount++;
+                        
+                        const row = document.createElement('tr');
+                        
+                        // Username
+                        const usernameCell = document.createElement('td');
+                        usernameCell.textContent = user.username;
+                        
+                        // Full Name
+                        const nameCell = document.createElement('td');
+                        nameCell.textContent = user.full_name || 'Not provided';
+                        
+                        // Email
+                        const emailCell = document.createElement('td');
+                        emailCell.textContent = user.email || 'Not provided';
+                        
+                        // Department
+                        const deptCell = document.createElement('td');
+                        deptCell.textContent = user.department || 'Not provided';
+                        
+                        // Registration Date
+                        const regDateCell = document.createElement('td');
+                        const regDate = new Date(user.created_at);
+                        regDateCell.textContent = regDate.toLocaleDateString();
+                        
+                        // Actions
+                        const actionsCell = document.createElement('td');
+                        
+                        // Approve button
+                        const approveBtn = document.createElement('button');
+                        approveBtn.className = 'btn btn-sm btn-success me-1';
+                        approveBtn.innerHTML = '<i class="fas fa-check"></i>';
+                        approveBtn.title = 'Approve User';
+                        approveBtn.onclick = function() {
+                            approveUser(user.username);
+                        };
+                        
+                        // Reject button
+                        const rejectBtn = document.createElement('button');
+                        rejectBtn.className = 'btn btn-sm btn-danger';
+                        rejectBtn.innerHTML = '<i class="fas fa-times"></i>';
+                        rejectBtn.title = 'Reject User';
+                        rejectBtn.onclick = function() {
+                            rejectUser(user.username);
+                        };
+                        
+                        actionsCell.appendChild(approveBtn);
+                        actionsCell.appendChild(rejectBtn);
+                        
+                        row.appendChild(usernameCell);
+                        row.appendChild(nameCell);
+                        row.appendChild(emailCell);
+                        row.appendChild(deptCell);
+                        row.appendChild(regDateCell);
+                        row.appendChild(actionsCell);
+                        
+                        pendingUsersTableBody.appendChild(row);
+                        return; // Skip to next user
+                    }
+                    
+                    // Only show approved users in the main table
+                    if (user.is_approved || user.role === 'admin') {
+                        const row = document.createElement('tr');
+                        
+                        // Username
+                        const usernameCell = document.createElement('td');
+                        usernameCell.textContent = user.username;
+                        
+                        // Full Name
+                        const nameCell = document.createElement('td');
+                        nameCell.textContent = user.full_name || 'Not provided';
+                        
+                        // Email
+                        const emailCell = document.createElement('td');
+                        emailCell.textContent = user.email || 'Not provided';
+                        
+                        // Department
+                        const deptCell = document.createElement('td');
+                        deptCell.textContent = user.department || 'Not provided';
+                        
+                        // Role
+                        const roleCell = document.createElement('td');
+                        const roleBadge = document.createElement('span');
+                        roleBadge.className = 'badge role-badge role-' + user.role;
+                        roleBadge.textContent = user.role === 'admin' ? 'Administrator' : 'Standard User';
+                        roleCell.appendChild(roleBadge);
+                        
+                        // Last Login
+                        const lastLoginCell = document.createElement('td');
+                        if (user.last_login) {
+                            const loginDate = new Date(user.last_login);
+                            lastLoginCell.textContent = loginDate.toLocaleString();
+                        } else {
+                            lastLoginCell.textContent = 'Never';
+                        }
+                        
+                        // Actions
+                        const actionsCell = document.createElement('td');
+                        
+                        // View/Edit button
+                        const viewBtn = document.createElement('button');
+                        viewBtn.className = 'btn btn-sm btn-info me-1';
+                        viewBtn.innerHTML = '<i class="fas fa-eye"></i>';
+                        viewBtn.title = 'View Details';
+                        viewBtn.onclick = function() {
+                            viewUserDetails(user.username);
+                        };
+                        actionsCell.appendChild(viewBtn);
+                        
+                        // Don't show delete button for the primary admin
+                        if (user.username !== 'admin') {
+                            const deleteBtn = document.createElement('button');
+                            deleteBtn.className = 'btn btn-sm btn-danger';
+                            deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                            deleteBtn.onclick = function() {
+                                // Set the username in the confirmation modal
+                                document.getElementById('delete-username').textContent = user.username;
+                                // Store the username as a data attribute on the confirm button
+                                document.getElementById('confirmDeleteBtn').dataset.username = user.username;
+                                // Show the confirmation modal
+                                deleteUserModal.show();
+                            };
+                            actionsCell.appendChild(deleteBtn);
+                        } else {
+                            const protectedBadge = document.createElement('span');
+                            protectedBadge.className = 'badge bg-secondary';
+                            protectedBadge.textContent = 'Protected';
+                            actionsCell.appendChild(protectedBadge);
+                        }
+                        
+                        row.appendChild(usernameCell);
+                        row.appendChild(nameCell);
+                        row.appendChild(emailCell);
+                        row.appendChild(deptCell);
+                        row.appendChild(roleCell);
+                        row.appendChild(lastLoginCell);
+                        row.appendChild(actionsCell);
+                        
+                        usersTableBody.appendChild(row);
+                    }
+                });
+                
+                // Update pending users badge
+                const pendingBadge = document.getElementById('pending-badge');
+                pendingBadge.textContent = pendingCount;
+                
+                if (pendingCount > 0) {
+                    pendingBadge.style.display = 'inline-block';
+                } else {
+                    pendingBadge.style.display = 'none';
+                    document.getElementById('pending-users-section').style.display = 'none';
+                }
+                
+            } else {
+                usersTableBody.innerHTML = '<tr><td colspan="7" class="text-center">No users found</td></tr>';
+                pendingUsersTableBody.innerHTML = '<tr><td colspan="6" class="text-center">No pending users</td></tr>';
+                document.getElementById('pending-badge').style.display = 'none';
+            }
+        })
+        .catch(error => console.error('Error fetching users data:', error));
+}
+
+// Function to approve a user
+function approveUser(username) {
+    fetch('/approve_user', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            username: username
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Reload users list
+            loadUsers();
+            
+            // Show success message
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    User approved successfully!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            document.querySelector('.dashboard-content').insertAdjacentHTML('afterbegin', alertHtml);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error approving user:', error);
+        alert('Failed to approve user. Please try again.');
+    });
+}
+
+// Function to reject a user
+function rejectUser(username) {
+    if (confirm(`Are you sure you want to reject and delete user ${username}?`)) {
+        fetch('/manage_users', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                username: username
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Reload users list
+                loadUsers();
+                
+                // Show success message
+                const alertHtml = `
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        User rejected and deleted successfully!
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                document.querySelector('.dashboard-content').insertAdjacentHTML('afterbegin', alertHtml);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error rejecting user:', error);
+            alert('Failed to reject user. Please try again.');
+        });
+    }
+}
+
+// Function to view user details
+function viewUserDetails(username) {
+    fetch(`/user_details/${username}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.user) {
+                // TODO: Implement detailed user view modal
+                alert(`View details for ${username} is not implemented yet.`);
+            } else {
+                alert('Error: User not found');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching user details:', error);
+            alert('Failed to fetch user details.');
+        });
+}
+
+// Reset system function
+function resetSystem() {
+    fetch('/reset', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Update UI immediately after reset
+            updatePostalCode();
+            updateHistory();
+            updateStats();
+            
+            // Hide the modal
+            resetConfirmModal.hide();
+            
+            // Show success message
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    System has been reset successfully!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            document.querySelector('.dashboard-content').insertAdjacentHTML('afterbegin', alertHtml);
+        }
+    })
+    .catch(error => {
+        console.error('Error resetting system:', error);
+        resetConfirmModal.hide();
+        
+        // Show error message
+        const alertHtml = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                Failed to reset system. Please try again.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        document.querySelector('.dashboard-content').insertAdjacentHTML('afterbegin', alertHtml);
+    });
+}
+
+// Add new user function
+function addNewUser() {
+    const username = document.getElementById('new-username').value;
+    const password = document.getElementById('new-password').value;
+    const role = document.getElementById('new-role').value;
+    
+    if (!username || !password) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    fetch('/manage_users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            username: username,
+            password: password,
+            role: role
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Reload users list
+            loadUsers();
+            
+            // Hide the modal and reset form
+            addUserModal.hide();
+            document.getElementById('add-user-form').reset();
+            
+            // Show success message
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    User added successfully!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            document.querySelector('.dashboard-content').insertAdjacentHTML('afterbegin', alertHtml);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error adding user:', error);
+        alert('Failed to add user. Please try again.');
+    });
+}
+
+// Delete user function
+function deleteUser(username) {
+    fetch('/manage_users', {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            username: username
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Reload users list
+            loadUsers();
+            
+            // Hide the modal
+            deleteUserModal.hide();
+            
+            // Show success message
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    User deleted successfully!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            document.querySelector('.dashboard-content').insertAdjacentHTML('afterbegin', alertHtml);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting user:', error);
+        alert('Failed to delete user. Please try again.');
+    });
+}
+
+// Update settings function
+function updateSettings(event) {
+    event.preventDefault();
+    
+    const scanInterval = document.getElementById('scan-interval-input').value;
+    const minConfidence = document.getElementById('min-confidence-input').value;
+    
+    fetch('/settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            scan_interval: scanInterval,
+            min_confidence: minConfidence
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Update stats
+            updateStats();
+            
+            // Show success message
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    Settings updated successfully!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            document.querySelector('.dashboard-content').insertAdjacentHTML('afterbegin', alertHtml);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating settings:', error);
+        alert('Failed to update settings. Please try again.');
+    });
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle pending users section
+    document.getElementById('pendingUsersBtn').addEventListener('click', function() {
+        const pendingSection = document.getElementById('pending-users-section');
+        pendingSection.style.display = pendingSection.style.display === 'none' ? 'block' : 'none';
+    });
+    
+    // Reset button click event
+    document.getElementById('reset-btn').addEventListener('click', function() {
+        resetConfirmModal.show();
+    });
+    
+    // Confirm reset button click event
+    document.getElementById('confirmResetBtn').addEventListener('click', resetSystem);
+    
+    // Add user button click event
+    document.getElementById('addUserBtn').addEventListener('click', function() {
+        addUserModal.show();
+    });
+    
+    // Save user button click event
+    document.getElementById('saveUserBtn').addEventListener('click', addNewUser);
+    
+    // Confirm delete button click event
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        const username = this.dataset.username;
+        deleteUser(username);
+    });
+    
+    // Settings form submit event
+    document.getElementById('settings-form').addEventListener('submit', updateSettings);
+    
+    // Initial loads
+    updatePostalCode();
+    updateHistory();
+    updateStats();
+    loadUsers();
+    updateRegionalStats();
+    
+    // Set up periodic updates
+    setInterval(updatePostalCode, 1000);
+    setInterval(updateHistory, 2000);
+    setInterval(updateStats, 5000);
+    setInterval(updateRegionalStats, 10000);
+});
+{% endblock %} 

@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Profil - Postal Code Detector</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+.profile-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+.profile-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 2rem;
+        }
+        .card-header {
+            background: #fff;
+            border-bottom: 2px solid #f8f9fa;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1.5rem;
+        }
+        .form-control {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+            transition: all 0.3s;
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .btn {
+            border-radius: 25px;
+            padding: 10px 25px;
+    font-weight: 500;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-warning {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+            border: none;
+            color: white;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            border: none;
+        }
+        .profile-info-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        .profile-info-item:last-child {
+            border-bottom: none;
+        }
+        .profile-info-icon {
+            width: 40px;
+            color: #667eea;
+        }
+        .profile-stats {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .edit-mode {
+            display: none;
+        }
+        .view-mode {
+            display: block;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(45deg, #667eea, #764ba2);">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('user_dashboard' if session.role == 'user' else 'admin_dashboard') }}">
+                <i class="fas fa-qrcode me-2"></i>Postal Code Detector
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('user_dashboard' if session.role == 'user' else 'admin_dashboard') }}">
+                    <i class="fas fa-tachometer-alt me-1"></i>Tableau de bord
+                </a>
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt me-1"></i>Déconnexion
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Profile Header -->
+            <div class="profile-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-3 text-center">
+                    <div class="profile-avatar mx-auto">
+                    <i class="fas fa-user"></i>
+                    </div>
+                </div>
+                <div class="col-md-9">
+                    <h1 class="mb-2">{{ user.full_name or user.username }}</h1>
+                    <p class="mb-1"><i class="fas fa-user-tag me-2"></i>{{ user.role.title() }}</p>
+                    <p class="mb-1"><i class="fas fa-building me-2"></i>{{ user.department or 'Non spécifié' }}</p>
+                    <p class="mb-0"><i class="fas fa-calendar me-2"></i>Membre depuis {{ user.created_at.strftime('%B %Y') if user.created_at else 'N/A' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' if category == 'info' else 'warning' }} alert-dismissible fade show fade-in" role="alert">
+                        <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' if category == 'info' else 'exclamation-circle' }} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+                <div class="row">
+            <!-- Profile Information Card -->
+            <div class="col-lg-8">
+                <div class="card fade-in">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0"><i class="fas fa-user me-2"></i>Informations personnelles</h4>
+                        <button class="btn btn-outline-primary btn-sm" id="toggleEditBtn" onclick="toggleEditMode()">
+                            <i class="fas fa-edit me-1"></i>Modifier
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- View Mode -->
+                        <div id="viewMode" class="view-mode">
+                            <div class="profile-info-item">
+                                <div class="profile-info-icon">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <strong>Nom complet:</strong><br>
+                                    <span class="text-muted">{{ user.full_name or 'Non spécifié' }}</span>
+                                </div>
+                            </div>
+                            <div class="profile-info-item">
+                                <div class="profile-info-icon">
+                                    <i class="fas fa-envelope"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <strong>Email:</strong><br>
+                                    <span class="text-muted">{{ user.email or 'Non spécifié' }}</span>
+                                </div>
+                            </div>
+                            <div class="profile-info-item">
+                                <div class="profile-info-icon">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <strong>Département:</strong><br>
+                                    <span class="text-muted">{{ user.department or 'Non spécifié' }}</span>
+                                </div>
+                            </div>
+                            <div class="profile-info-item">
+                                <div class="profile-info-icon">
+                                    <i class="fas fa-phone"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <strong>Téléphone:</strong><br>
+                                    <span class="text-muted">{{ user.phone or 'Non spécifié' }}</span>
+                                </div>
+                            </div>
+                            <div class="profile-info-item">
+                                <div class="profile-info-icon">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <strong>Adresse:</strong><br>
+                                    <span class="text-muted">{{ user.address or 'Non spécifiée' }}</span>
+                                </div>
+                            </div>
+                            <div class="profile-info-item">
+                                <div class="profile-info-icon">
+                                    <i class="fas fa-info-circle"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <strong>Biographie:</strong><br>
+                                    <span class="text-muted">{{ user.bio or 'Aucune biographie' }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Edit Mode -->
+                        <div id="editMode" class="edit-mode">
+                            <form method="POST" action="{{ url_for('profile') }}">
+                                {{ profile_form.hidden_tag() }}
+                                <input type="hidden" name="action" value="update_profile">
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        {{ profile_form.full_name.label(class="form-label") }}
+                                        {{ profile_form.full_name(class="form-control") }}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        {{ profile_form.email.label(class="form-label") }}
+                                        {{ profile_form.email(class="form-control") }}
+                    </div>
+                </div>
+                
+                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        {{ profile_form.department.label(class="form-label") }}
+                                        {{ profile_form.department(class="form-control") }}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        {{ profile_form.phone.label(class="form-label") }}
+                                        {{ profile_form.phone(class="form-control") }}
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ profile_form.address.label(class="form-label") }}
+                                    {{ profile_form.address(class="form-control") }}
+                                </div>
+                                
+                                <div class="mb-4">
+                                    {{ profile_form.bio.label(class="form-label") }}
+                                    {{ profile_form.bio(class="form-control") }}
+                                </div>
+                                
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Enregistrer les modifications
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" onclick="toggleEditMode()">
+                                        <i class="fas fa-times me-2"></i>Annuler
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Password Change Card -->
+                <div class="card fade-in">
+                    <div class="card-header">
+                        <h4 class="mb-0"><i class="fas fa-lock me-2"></i>Changer le mot de passe</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('profile') }}">
+                            {{ password_form.hidden_tag() }}
+                            <input type="hidden" name="action" value="change_password">
+                            
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    {{ password_form.current_password.label(class="form-label") }}
+                                    {{ password_form.current_password(class="form-control") }}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    {{ password_form.new_password.label(class="form-label") }}
+                                    {{ password_form.new_password(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    {{ password_form.confirm_password.label(class="form-label") }}
+                                    {{ password_form.confirm_password(class="form-control") }}
+                            </div>
+                        </div>
+                            
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-key me-2"></i>Changer le mot de passe
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Profile Statistics Sidebar -->
+            <div class="col-lg-4">
+                <!-- Profile Stats -->
+                <div class="profile-stats fade-in">
+                    <h5 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Statistiques du profil</h5>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h3 class="mb-1">{{ user.created_at.strftime('%d') if user.created_at else '0' }}</h3>
+                            <small>Jour d'inscription</small>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="mb-1">{{ user.detections|length if user.detections else '0' }}</h3>
+                            <small>Détections</small>
+                        </div>
+            </div>
+        </div>
+        
+                <!-- Account Information -->
+                <div class="card fade-in">
+            <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations du compte</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="profile-info-item">
+                            <div class="profile-info-icon">
+                                <i class="fas fa-user-tag"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <strong>Nom d'utilisateur:</strong><br>
+                                <span class="text-muted">{{ user.username }}</span>
+                            </div>
+                        </div>
+                        <div class="profile-info-item">
+                            <div class="profile-info-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <strong>Rôle:</strong><br>
+                                <span class="badge bg-{{ 'primary' if user.role == 'admin' else 'secondary' }}">
+                                    {{ user.role.title() }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="profile-info-item">
+                            <div class="profile-info-icon">
+                                <i class="fas fa-calendar-plus"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <strong>Membre depuis:</strong><br>
+                                <span class="text-muted">{{ user.created_at.strftime('%d/%m/%Y') if user.created_at else 'N/A' }}</span>
+                            </div>
+                        </div>
+                        {% if user.last_login %}
+                        <div class="profile-info-item">
+                            <div class="profile-info-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <strong>Dernière connexion:</strong><br>
+                                <span class="text-muted">{{ user.last_login.strftime('%d/%m/%Y %H:%M') }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if user.profile_updated_at %}
+                        <div class="profile-info-item">
+                            <div class="profile-info-icon">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <strong>Profil mis à jour:</strong><br>
+                                <span class="text-muted">{{ user.profile_updated_at.strftime('%d/%m/%Y %H:%M') }}</span>
+            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card fade-in">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Actions rapides</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('user_dashboard' if session.role == 'user' else 'admin_dashboard') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-tachometer-alt me-2"></i>Tableau de bord
+                            </a>
+                            <a href="{{ url_for('forgot_password') }}" class="btn btn-outline-warning">
+                                <i class="fas fa-key me-2"></i>Réinitialiser mot de passe
+                            </a>
+                            {% if session.role == 'admin' %}
+                            <a href="/api/users" class="btn btn-outline-info">
+                                <i class="fas fa-users me-2"></i>Gérer utilisateurs
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleEditMode() {
+            const viewMode = document.getElementById('viewMode');
+            const editMode = document.getElementById('editMode');
+            const toggleBtn = document.getElementById('toggleEditBtn');
+            
+            if (viewMode.classList.contains('view-mode')) {
+                // Switch to edit mode
+                viewMode.style.display = 'none';
+                editMode.style.display = 'block';
+                toggleBtn.innerHTML = '<i class="fas fa-eye me-1"></i>Voir';
+                toggleBtn.classList.remove('btn-outline-primary');
+                toggleBtn.classList.add('btn-outline-secondary');
+            } else {
+                // Switch to view mode
+                viewMode.style.display = 'block';
+                editMode.style.display = 'none';
+                toggleBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Modifier';
+                toggleBtn.classList.remove('btn-outline-secondary');
+                toggleBtn.classList.add('btn-outline-primary');
+            }
+            
+            viewMode.classList.toggle('view-mode');
+            editMode.classList.toggle('edit-mode');
+        }
+
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    </script>
+</body>
+</html> 

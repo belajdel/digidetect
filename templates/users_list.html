@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Liste des Utilisateurs - Postal Code Detector</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .admin-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .stats-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .stats-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .main-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+        .card-header-custom {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 1.5rem;
+            border-bottom: none;
+        }
+        .search-section {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 25px;
+            padding: 8px 20px;
+            transition: all 0.3s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .table th {
+            background-color: #f8f9fa;
+            border: none;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            padding: 1rem;
+        }
+        .table td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-color: #f1f3f4;
+        }
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .role-badge {
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        .role-admin {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+        .role-user {
+            background-color: #f3e5f5;
+            color: #7b1fa2;
+        }
+        .pagination {
+            margin-top: 2rem;
+        }
+        .page-link {
+            border-radius: 10px;
+            margin: 0 2px;
+            border: none;
+            color: #667eea;
+        }
+        .page-link:hover {
+            background-color: #667eea;
+            color: white;
+        }
+        .page-item.active .page-link {
+            background-color: #667eea;
+            border-color: #667eea;
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border-radius: 15px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(45deg, #667eea, #764ba2);">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">
+                <i class="fas fa-qrcode me-2"></i>Postal Code Detector - Admin
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
+                    <i class="fas fa-tachometer-alt me-1"></i>Tableau de bord
+                </a>
+                <a class="nav-link" href="{{ url_for('profile') }}">
+                    <i class="fas fa-user me-1"></i>Profil
+                </a>
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt me-1"></i>Déconnexion
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <div class="admin-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="mb-2">
+                        <i class="fas fa-users me-3"></i>
+                        Liste des Utilisateurs
+                    </h1>
+                    <p class="mb-0 opacity-75">Gestion et consultation des comptes utilisateurs</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="d-flex flex-wrap justify-content-md-end gap-2">
+                        <a href="{{ url_for('admin_add_user') }}" class="btn btn-success">
+                            <i class="fas fa-user-plus me-2"></i>Ajouter Nouveau
+                        </a>
+                        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-light">
+                            <i class="fas fa-arrow-left me-2"></i>Retour au tableau de bord
+                        </a>
+                        <a href="/api/users" class="btn btn-outline-light">
+                            <i class="fas fa-cog me-2"></i>Gestion avancée
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' if category == 'info' else 'warning' }} alert-dismissible fade show fade-in" role="alert">
+                        <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' if category == 'info' else 'exclamation-circle' }} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="stats-card text-center fade-in">
+                    <div class="stats-number text-primary">{{ stats.total_users }}</div>
+                    <div class="stats-label">Total Utilisateurs</div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="stats-card text-center fade-in">
+                    <div class="stats-number text-info">{{ stats.admin_count }}</div>
+                    <div class="stats-label">Administrateurs</div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="stats-card text-center fade-in">
+                    <div class="stats-number text-secondary">{{ stats.user_count }}</div>
+                    <div class="stats-label">Utilisateurs</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 col-sm-6 mb-3">
+                <div class="stats-card text-center fade-in">
+                    <div class="stats-number text-success">{{ stats.approved_count }}</div>
+                    <div class="stats-label">Comptes Approuvés</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 col-sm-6 mb-3">
+                <div class="stats-card text-center fade-in">
+                    <div class="stats-number text-warning">{{ stats.pending_count }}</div>
+                    <div class="stats-label">En Attente</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-card fade-in">
+            <!-- Card Header -->
+            <div class="card-header-custom">
+                <h4 class="mb-0">
+                    <i class="fas fa-table me-2"></i>
+                    Liste des Utilisateurs
+                    <span class="badge bg-light text-dark ms-2">{{ pagination.total }} utilisateur{{ 's' if pagination.total != 1 else '' }}</span>
+                </h4>
+            </div>
+
+            <!-- Search and Filter Section -->
+            <div class="search-section">
+                <form method="GET" action="{{ url_for('admin_users_list') }}">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-5">
+                            <label for="search" class="form-label">
+                                <i class="fas fa-search me-1"></i>Rechercher
+                            </label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ search_query }}" 
+                                   placeholder="Nom, email ou nom d'utilisateur...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="role" class="form-label">
+                                <i class="fas fa-filter me-1"></i>Filtrer par rôle
+                            </label>
+                            <select class="form-select" id="role" name="role">
+                                <option value="all" {{ 'selected' if role_filter == 'all' or not role_filter }}>Tous les rôles</option>
+                                <option value="admin" {{ 'selected' if role_filter == 'admin' }}>Administrateurs</option>
+                                <option value="user" {{ 'selected' if role_filter == 'user' }}>Utilisateurs</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i>Rechercher
+                                </button>
+                                <a href="{{ url_for('admin_users_list') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i>Réinitialiser
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Users Table -->
+            <div class="table-responsive">
+                {% if users %}
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Utilisateur</th>
+                                <th>Contact</th>
+                                <th>Rôle</th>
+                                <th>Statut</th>
+                                <th>Inscription</th>
+                                <th>Dernière connexion</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="user-avatar">
+                                                {{ user.full_name[0] if user.full_name else user.username[0] }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ user.full_name or user.username }}</div>
+                                                <small class="text-muted">@{{ user.username }}</small>
+                                                {% if user.department %}
+                                                    <br><small class="text-info">{{ user.department }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <i class="fas fa-envelope me-1 text-muted"></i>
+                                            {{ user.email or 'Non spécifié' }}
+                                        </div>
+                                        {% if user.phone %}
+                                            <div class="mt-1">
+                                                <i class="fas fa-phone me-1 text-muted"></i>
+                                                {{ user.phone }}
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="role-badge {{ 'role-admin' if user.role == 'admin' else 'role-user' }}">
+                                            <i class="fas fa-{{ 'crown' if user.role == 'admin' else 'user' }} me-1"></i>
+                                            {{ user.role.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge {{ 'status-active' if user.is_approved else 'status-pending' }}">
+                                            <i class="fas fa-{{ 'check-circle' if user.is_approved else 'clock' }} me-1"></i>
+                                            {{ 'Approuvé' if user.is_approved else 'En attente' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div>{{ user.created_at.strftime('%d/%m/%Y') if user.created_at else 'N/A' }}</div>
+                                        <small class="text-muted">{{ user.created_at.strftime('%H:%M') if user.created_at else '' }}</small>
+                                    </td>
+                                    <td>
+                                        {% if user.last_login %}
+                                            <div>{{ user.last_login.strftime('%d/%m/%Y') }}</div>
+                                            <small class="text-muted">{{ user.last_login.strftime('%H:%M') }}</small>
+                                        {% else %}
+                                            <span class="text-muted">Jamais connecté</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="action-buttons">
+                                            <button class="btn btn-outline-primary btn-sm" 
+                                                    data-bs-toggle="tooltip" title="Voir détails"
+                                                    onclick="showUserDetails({{ user.id }})">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-warning btn-sm"
+                                                    data-bs-toggle="tooltip" title="Modifier"
+                                                    onclick="editUser({{ user.id }})">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            {% if not user.is_approved %}
+                                                <button class="btn btn-outline-success btn-sm"
+                                                        data-bs-toggle="tooltip" title="Approuver"
+                                                        onclick="approveUser({{ user.id }})">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            {% endif %}
+                                            {% if user.username != 'admin' and user.id != session.get('user_id') %}
+                                                <button class="btn btn-outline-danger btn-sm"
+                                                        data-bs-toggle="tooltip" title="Supprimer"
+                                                        onclick="deleteUser({{ user.id }}, '{{ user.username }}', '{{ user.full_name or '' }}')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            {% else %}
+                                                <button class="btn btn-outline-secondary btn-sm" disabled
+                                                        data-bs-toggle="tooltip" title="Compte protégé">
+                                                    <i class="fas fa-shield"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-users-slash"></i>
+                        <h4>Aucun utilisateur trouvé</h4>
+                        <p class="text-muted">
+                            {% if search_query or role_filter %}
+                                Aucun utilisateur ne correspond à vos critères de recherche.
+                            {% else %}
+                                Il n'y a pas encore d'utilisateurs dans le système.
+                            {% endif %}
+                        </p>
+                        {% if search_query or role_filter %}
+                            <a href="{{ url_for('admin_users_list') }}" class="btn btn-primary">
+                                <i class="fas fa-times me-2"></i>Réinitialiser les filtres
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Pagination -->
+            {% if pagination.pages > 1 %}
+                <div class="p-3 border-top">
+                    <nav aria-label="Navigation des pages">
+                        <ul class="pagination justify-content-center mb-0">
+                            <!-- Previous Page -->
+                            {% if pagination.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('admin_users_list', page=pagination.prev_num, search=search_query, role=role_filter) }}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            <!-- Page Numbers -->
+                            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                {% if page_num %}
+                                    {% if page_num != pagination.page %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('admin_users_list', page=page_num, search=search_query, role=role_filter) }}">
+                                                {{ page_num }}
+                                            </a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">…</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            <!-- Next Page -->
+                            {% if pagination.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('admin_users_list', page=pagination.next_num, search=search_query, role=role_filter) }}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+
+                    <!-- Pagination Info -->
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            Affichage de {{ ((pagination.page - 1) * pagination.per_page) + 1 }} à 
+                            {{ pagination.page * pagination.per_page if pagination.page * pagination.per_page < pagination.total else pagination.total }} 
+                            sur {{ pagination.total }} utilisateur{{ 's' if pagination.total != 1 else '' }}
+                        </small>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Delete User Confirmation Modal -->
+    <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteUserModalLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirmation de suppression
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i class="fas fa-user-times text-danger" style="font-size: 3rem;"></i>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>ATTENTION :</strong> Cette action est irréversible !
+                    </div>
+                    <p class="mb-3">Êtes-vous sûr de vouloir supprimer l'utilisateur <strong id="deleteUserName"></strong> ?</p>
+                    <div class="bg-light p-3 rounded mb-3">
+                        <p class="mb-2"><strong>Cette action supprimera définitivement :</strong></p>
+                        <ul class="mb-0">
+                            <li>Le compte utilisateur</li>
+                            <li>Toutes les données associées</li>
+                            <li>L'historique des détections</li>
+                            <li>Les paramètres personnalisés</li>
+                        </ul>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmationInput" class="form-label">
+                            Pour confirmer, tapez <code>SUPPRIMER</code> dans le champ ci-dessous :
+                        </label>
+                        <input type="text" class="form-control" id="confirmationInput" 
+                               placeholder="Tapez SUPPRIMER pour confirmer"
+                               autocomplete="off">
+                        <div class="form-text text-danger" id="confirmationError" style="display: none;">
+                            Vous devez taper exactement "SUPPRIMER" pour confirmer la suppression.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Annuler
+                    </button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn" disabled>
+                        <i class="fas fa-trash me-2"></i>Supprimer définitivement
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+
+        // User action functions
+        function showUserDetails(userId) {
+            // Redirect to user details (you can implement this route)
+            window.location.href = `/api/users/${userId}`;
+        }
+
+        function editUser(userId) {
+            // Redirect to user edit route
+            window.location.href = `/admin/users/${userId}/edit`;
+        }
+
+        function approveUser(userId) {
+            if (confirm('Êtes-vous sûr de vouloir approuver cet utilisateur ?')) {
+                fetch('/approve_user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({user_id: userId})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        location.reload();
+                    } else {
+                        alert('Erreur lors de l\'approbation: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Erreur lors de l\'approbation de l\'utilisateur');
+                });
+            }
+        }
+
+        function deleteUser(userId, username, fullName) {
+            // Store user information for the modal
+            window.deleteUserData = {
+                id: userId,
+                username: username,
+                fullName: fullName
+            };
+            
+            // Update modal content
+            const displayName = fullName || username;
+            document.getElementById('deleteUserName').textContent = displayName;
+            
+            // Reset modal state
+            document.getElementById('confirmationInput').value = '';
+            document.getElementById('confirmDeleteBtn').disabled = true;
+            document.getElementById('confirmationError').style.display = 'none';
+            
+            // Show modal
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+            deleteModal.show();
+        }
+
+        // Search functionality
+        document.getElementById('search').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.form.submit();
+            }
+        });
+
+        // Modal deletion logic
+        document.addEventListener('DOMContentLoaded', function() {
+            const confirmationInput = document.getElementById('confirmationInput');
+            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+            const confirmationError = document.getElementById('confirmationError');
+            
+            // Enable/disable delete button based on input
+            confirmationInput.addEventListener('input', function() {
+                const isValid = this.value === 'SUPPRIMER';
+                confirmDeleteBtn.disabled = !isValid;
+                
+                if (this.value && !isValid) {
+                    confirmationError.style.display = 'block';
+                } else {
+                    confirmationError.style.display = 'none';
+                }
+            });
+            
+            // Handle delete confirmation
+            confirmDeleteBtn.addEventListener('click', function() {
+                if (confirmationInput.value === 'SUPPRIMER' && window.deleteUserData) {
+                    // Show loading state
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Suppression...';
+                    this.disabled = true;
+                    
+                    // Create a form to submit the DELETE request
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = `/admin/users/${window.deleteUserData.id}/delete`;
+                    
+                    // Add CSRF token
+                    const csrfToken = document.querySelector('meta[name=csrf-token]');
+                    if (csrfToken) {
+                        const csrfInput = document.createElement('input');
+                        csrfInput.type = 'hidden';
+                        csrfInput.name = 'csrf_token';
+                        csrfInput.value = csrfToken.getAttribute('content');
+                        form.appendChild(csrfInput);
+                    }
+                    
+                    // Submit form
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+            
+            // Reset modal when closed
+            document.getElementById('deleteUserModal').addEventListener('hidden.bs.modal', function() {
+                confirmationInput.value = '';
+                confirmDeleteBtn.disabled = true;
+                confirmDeleteBtn.innerHTML = '<i class="fas fa-trash me-2"></i>Supprimer définitivement';
+                confirmationError.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html> 

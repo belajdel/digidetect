@@ -1,0 +1,169 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}System Reset - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        System Reset - Danger Zone
+                    </h5>
+                </div>
+                <div class="p-4">
+                    <div class="alert alert-danger" role="alert">
+                        <h4 class="alert-heading">
+                            <i class="fas fa-skull-crossbones me-2"></i>
+                            WARNING: Irreversible Action
+                        </h4>
+                        <p class="mb-3">
+                            You are about to <strong>permanently delete</strong> all system data including:
+                        </p>
+                        <ul class="mb-3">
+                            <li><strong>All postal code detections</strong> - Historical detection records</li>
+                            <li><strong>System statistics</strong> - Usage metrics and counters</li>
+                            <li><strong>Detection history</strong> - User detection logs</li>
+                        </ul>
+                        <hr>
+                        <p class="mb-0">
+                            <strong>This action cannot be undone!</strong> All data will be permanently lost.
+                        </p>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card border-danger">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0 text-danger">
+                                        <i class="fas fa-database me-2"></i>
+                                        Data to be Deleted
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between py-2">
+                                        <span>Detection Records:</span>
+                                        <span id="detection-count" class="fw-bold">Loading...</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between py-2">
+                                        <span>System Statistics:</span>
+                                        <span class="fw-bold">All metrics</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between py-2">
+                                        <span>Historical Data:</span>
+                                        <span class="fw-bold">Complete history</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card border-success">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0 text-success">
+                                        <i class="fas fa-shield-alt me-2"></i>
+                                        Data Preserved
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between py-2">
+                                        <span>User Accounts:</span>
+                                        <span class="fw-bold text-success">✓ Safe</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between py-2">
+                                        <span>User Profiles:</span>
+                                        <span class="fw-bold text-success">✓ Safe</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between py-2">
+                                        <span>System Settings:</span>
+                                        <span class="fw-bold text-success">✓ Safe</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 p-3 bg-light rounded">
+                        <h6 class="text-danger">
+                            <i class="fas fa-key me-2"></i>
+                            Confirmation Required
+                        </h6>
+                        <p class="mb-3">
+                            To proceed with the system reset, type <code class="text-danger">RESET SYSTEM</code> in the box below:
+                        </p>
+                        
+                        <form method="POST" id="reset-form">
+                            <div class="mb-3">
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    id="confirmation-text" 
+                                    placeholder="Type: RESET SYSTEM"
+                                    required
+                                >
+                            </div>
+                            
+                            <div class="d-flex gap-3">
+                                <button 
+                                    type="submit" 
+                                    class="btn btn-danger" 
+                                    id="reset-button"
+                                    disabled
+                                >
+                                    <i class="fas fa-trash-alt me-2"></i>
+                                    Reset System Now
+                                </button>
+                                
+                                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i>
+                                    Cancel & Go Back
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_scripts %}
+<script>
+// Load detection count
+fetch('/api/system_stats')
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('detection-count').textContent = data.total_detections || 0;
+    })
+    .catch(error => {
+        document.getElementById('detection-count').textContent = 'Error loading';
+    });
+
+// Confirmation text validation
+const confirmationInput = document.getElementById('confirmation-text');
+const resetButton = document.getElementById('reset-button');
+
+confirmationInput.addEventListener('input', function() {
+    const confirmText = this.value.trim().toUpperCase();
+    if (confirmText === 'RESET SYSTEM') {
+        resetButton.disabled = false;
+        resetButton.classList.remove('btn-danger');
+        resetButton.classList.add('btn-outline-danger');
+    } else {
+        resetButton.disabled = true;
+        resetButton.classList.remove('btn-outline-danger');
+        resetButton.classList.add('btn-danger');
+    }
+});
+
+// Double confirmation before submit
+document.getElementById('reset-form').addEventListener('submit', function(e) {
+    if (!confirm('Are you absolutely sure you want to reset the entire system? This cannot be undone!')) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %} 
